@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/signalk-daily-gpx-plugin.svg)](https://www.npmjs.com/package/signalk-daily-gpx-plugin)
 
-A SignalK plugin that generates a daily [GPX](http://www.topografix.com/gpx.asp) file
+A [SignalK](https://signalk.org/) plugin that generates a daily [GPX](http://www.topografix.com/gpx.asp) file
 
 ## Configuration
 
@@ -22,7 +22,7 @@ Folder path to save GPX files in. If left blank, default is:
 
 ## Behavior
 
-The plugin will store track points in a local cache and will write the gpx file after midnight every day (per the signal K server clock) - so you will not find a gpx file until after midnight. 
+The plugin will store track points in a local cache and will write the GPX file after midnight every day (per the signal K server clock) - so you will not find a GPX file until after midnight. 
 
 If you want to force a GPX file to be written, use:
 
