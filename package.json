@@ -1,0 +1,28 @@
+{
+  "name": "signalk-daily-gpx-plugin",
+  "version": "0.0.1",
+  "description": "A SignalK plugin that writes a daily GPX file",
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-category-utility"
+  ],
+  "signalk-plugin-enabled-by-default": false,
+  "license": "ISC",
+  "author": "Jeremy Waters",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "sqlite3": "^5.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaffadog/signalk-daily-gpx-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jaffadog/signalk-daily-gpx-plugin/issues"
+  },
+  "homepage": "https://github.com/jaffadog/signalk-daily-gpx-plugin#readme"
+}
