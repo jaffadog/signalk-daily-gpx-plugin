@@ -8,7 +8,7 @@ A [SignalK](https://signalk.org/) plugin that generates a daily [GPX](http://www
 
 ### GPS Position Source
 
-If there are multiple sources of **navigation.position**, then specify which one we should use. If left blank, all will be used - which may lead to duplicate points, or less time that the specified interval between points. If you have multiple sources of **navigation.position** being reported in SignalK, you should configure **Source Priorities** in SignalK to filter out the duplicate/extraneous source(s).
+If there are multiple sources of **navigation.position**, then specify which one we should use. If left blank, all will be used - which may lead to duplicate points in the track, or less time than the specified interval between points. If you have multiple sources of **navigation.position** being reported in SignalK, you should configure **Source Priorities** in SignalK to filter out the duplicate/extraneous source(s).
 
 ### Time Interval
 
@@ -24,7 +24,9 @@ Folder path to save GPX files in. If left blank, default is:
 
 The plugin will store track points in a local cache and will write the GPX file after midnight every day (per the signal K server clock) - so you will not find a GPX file until after midnight. 
 
-If you want to force a GPX file to be written, use:
+Note that you could use the [signalk-set-gps-timezone](https://github.com/hoeken/signalk-set-gps-timezone) plugin to automatically update your SignalK server's timezone as you sail across timezones in order to keep accurate "daily" intervals betwween GPX files.
+
+If you want to force a GPX file to be written right now, use:
 
     http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/write-gpx-file-now. 
 
