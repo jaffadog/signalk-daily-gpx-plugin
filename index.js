@@ -29,7 +29,7 @@ module.exports = function(app) {
       trackInterval = options.trackInterval;
       gpxFolder = options.gpxFolder ? gpxFolder : app.getDataDirPath();
       
-      let dbFile= filePath.join(app.getDataDirPath(), ${plugin.id} + '.sqlite3');
+      let dbFile = filePath.join( app.getDataDirPath(), plugin.id + '.sqlite3');
       db = new sqlite3.Database(dbFile);
       db.run('CREATE TABLE IF NOT EXISTS buffer(ts REAL, latitude REAL, longitude REAL)');
       db.run('CREATE TABLE IF NOT EXISTS configuration(id INTEGER PRIMARY KEY, config TEXT)');
