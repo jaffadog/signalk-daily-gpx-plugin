@@ -1,8 +1,14 @@
-# SignalK Daily GPX Plugin
-
 [![npm version](https://img.shields.io/npm/v/signalk-daily-gpx-plugin.svg)](https://www.npmjs.com/package/signalk-daily-gpx-plugin)
 
-A [SignalK](https://signalk.org/) plugin that generates a daily [GPX](http://www.topografix.com/gpx.asp) file
+# SignalK Daily GPX Plugin
+
+A [SignalK](https://signalk.org/) plugin that generates a daily [GPX](http://www.topografix.com/gpx.asp) file.
+
+## What Does It Do?
+
+The SignalK Daily GPX Plugin records your position on a specified time interval to a temporary buffer on the SignalK server. At midnight, it collects the recorded data and creates a GPX file containing your track for the day. The GPX file is saved on the SignalK server in a folder of your choosing. Over time, you automatically accumulate daily GPX track files documenting your voyages.
+
+Note that GPX files are not created until midnight (per the clock on your SignalK server). So if you look for GPX files before then, you won't find any.
 
 ## Configuration
 
@@ -12,7 +18,11 @@ If there are multiple sources of **navigation.position**, then specify which one
 
 ### Time Interval
 
-Number of minutes between recorded track points (default is 10 minutes)
+Number of minutes between recorded track points (default is 10 minutes).
+
+### Minimum Move Distance (meters)
+
+The minimum boat movement in the specified time interval required before recording a track point. This prevents track recording while anchored or docked. If blank, the track is recorded regardless of movement. (default is 100 meters)
 
 ### Folder Path
 
@@ -20,11 +30,11 @@ Folder path to save GPX files in. If left blank, default is:
 
     $SIGNALK_NODE_CONFIG_DIR/plugin-config-data/signalk-daily-gpx-plugin.
 
-## Behavior
+## Extras
 
-The plugin will store track points in a local cache and will write the GPX file after midnight every day (per the signal K server clock) - so you will not find a GPX file until after midnight. 
+If your travels take you across timezones, you could use the [signalk-set-gps-timezone](https://github.com/hoeken/signalk-set-gps-timezone) plugin to automatically update your SignalK server's timezone. That way, GPX files will always be written at midnight in your local timezone - and capture the full day of travel with a local timezone context.
 
-Note that you could use the [signalk-set-gps-timezone](https://github.com/hoeken/signalk-set-gps-timezone) plugin to automatically update your SignalK server's timezone as you sail across timezones in order to keep accurate "daily" intervals betwween GPX files.
+For testing a experimenting, the following methods are provided.
 
 If you want to force a GPX file to be written right now, use:
 
