@@ -34,7 +34,7 @@ Folder path to save GPX files in. If left blank, default is:
 
 If your travels take you across timezones, you could use the [signalk-set-gps-timezone](https://github.com/hoeken/signalk-set-gps-timezone) plugin to automatically update your SignalK server's timezone. That way, GPX files will always be written at midnight in your local timezone - and capture the full day of travel with a local timezone context.
 
-For testing a experimenting, the following methods are provided.
+For testing and experimenting, the following methods are provided.
 
 If you want to force a GPX file to be written right now, use:
 
