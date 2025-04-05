@@ -7,8 +7,11 @@ const GPX_LAT_LONG_DECIMAL_PLACES = 6;
 const fs = require('fs');
 const filePath = require('path');
 const sqlite3 = require('sqlite3');
+const express = require('express');
+const expressApp = express();
 
-module.exports = function(app) {
+
+module.exports = function (app) {
     var plugin = {};
     var db;
     var position;
@@ -24,7 +27,7 @@ module.exports = function(app) {
     plugin.name = "SignalK Daily GPX Plugin";
     plugin.description = "A SignalK plugin that writes a daily GPX file";
 
-    plugin.start = function(options) {
+    plugin.start = function (options) {
         app.debug('Plugin started');
 
         gpsSource = options.gpsSource;
@@ -32,14 +35,21 @@ module.exports = function(app) {
         minimumMoveDistance = options.minimumMoveDistance;
         gpxFolder = options.gpxFolder ? gpxFolder : app.getDataDirPath();
 
+        expressApp.use('/' + plugin.id, express.static(gpxFolder));
+
         var dbFile = filePath.join(app.getDataDirPath(), plugin.id + '.sqlite3');
-        db = new sqlite3.Database(dbFile, function(err) {
+        db = new sqlite3.Database(dbFile, function (err) {
             if (err) {
                 app.debug('Error opening database:', err);
                 throw err;
             }
             app.debug('creating buffer table');
-            db.run('CREATE TABLE IF NOT EXISTS buffer(ts REAL, latitude REAL, longitude REAL)');
+            db.run('CREATE TABLE IF NOT EXISTS buffer(ts REAL, latitude REAL, longitude REAL)', function (err) {
+                if (err) {
+                    app.debug('Error creating buffer:', err);
+                }
+                previousSavedPosition = getPreviousSavedPosition();
+            });
         });
 
         var localSubscription = {
@@ -60,14 +70,14 @@ module.exports = function(app) {
         );
     };
 
-    plugin.stop = function() {
+    plugin.stop = function () {
         app.debug(`Stopping the plugin`);
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
             unsubscribes.forEach(f => f());
             unsubscribes = [];
             if (db) {
                 app.debug('closing db');
-                db.close(function(err) {
+                db.close(function (err) {
                     if (err) {
                         app.debug('error closing db', err);
                         // resolve anyway...
@@ -135,9 +145,24 @@ module.exports = function(app) {
         });
     };
 
+    function getPreviousSavedPosition() {
+        db.get('SELECT * FROM buffer order by ts desc limit 1', function (err, row) {
+            if (err) {
+                app.debug('Error querying the local buffer:', err);
+                return;
+            }
+
+            app.debug('row', row);
+
+            if (row && row.timestamp) {
+                return row;
+            }
+        });
+    };
+
     function updatePluginStatus() {
         app.debug('updating server status message');
-        db.get('SELECT COUNT(*) AS count FROM buffer', function(err, row) {
+        db.get('SELECT COUNT(*) AS count FROM buffer', function (err, row) {
             if (err) {
                 app.debug('Error querying the local buffer:', err);
                 return;
@@ -207,7 +232,7 @@ module.exports = function(app) {
 
     async function addPositionToBuffer() {
         app.debug('Storing position in local buffer', position.timestamp, position.latitude, position.longitude);
-        db.run('INSERT INTO buffer VALUES(?, ?, ?)', [position.timestamp, position.latitude, position.longitude], function(err) {
+        db.run('INSERT INTO buffer VALUES(?, ?, ?)', [position.timestamp, position.latitude, position.longitude], function (err) {
             if (err) {
                 app.debug('Error inserting data into the local buffer:', err);
                 return;
@@ -218,15 +243,17 @@ module.exports = function(app) {
 
     function writeDailyGpxFile() {
         app.debug('enter writeDailyGpxFile');
-        return new Promise(function(resolve, reject) {
-            db.all('SELECT * FROM buffer ORDER BY ts', function(err, trackPoints) {
+        return new Promise(function (resolve, reject) {
+            db.all('SELECT * FROM buffer ORDER BY ts', function (err, trackPoints) {
                 if (err) {
                     app.debug('Error querying the local buffer:', err);
                     reject(err);
+                    return;
                 }
                 if (!trackPoints || trackPoints.length == 0) {
                     app.debug('No trackPoints in the local buffer');
                     reject("No trackPoints in the local buffer");
+                    return;
                 }
 
                 app.debug(`Writing ${trackPoints.length} positions to gpx file`);
@@ -256,6 +283,7 @@ module.exports = function(app) {
                     } catch (err) {
                         app.debug('Error creating folder for gpx file:', err);
                         reject(err);
+                        return;
                     }
                 }
 
@@ -266,6 +294,7 @@ module.exports = function(app) {
                 } catch (err) {
                     app.debug('Error writing gpx file:', err);
                     reject(err);
+                    return;
                 }
 
                 updatePluginStatus();
@@ -277,7 +306,7 @@ module.exports = function(app) {
 
     function clearBuffer(lastTs) {
         app.debug('clearing buffer');
-        db.run('DELETE FROM buffer' + (lastTs ? ' where ts < ' + lastTs : ''), function(err) {
+        db.run('DELETE FROM buffer' + (lastTs ? ' where ts < ' + lastTs : ''), function (err) {
             if (err) {
                 app.debug('Error clearing the local buffer:', err);
                 return;
