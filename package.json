@@ -1,14 +1,15 @@
 {
   "name": "signalk-daily-gpx-plugin",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A SignalK plugin that writes a daily GPX file",
   "keywords": [
     "signalk-node-server-plugin",
+    "signalk-webapp",
     "signalk-category-utility"
   ],
   "signalk-plugin-enabled-by-default": false,
   "license": "MIT",
-  "author": "Jeremy Waters",
+  "author": "Jeremy Waters <jaffadog@gmail.com>",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SignalK Daily GPX Plugin</title>
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="py-4">
+    <div class="container">
+        <h1>SignalK Daily GPX Plugin</h1>
+
+        <p>The plugin will automatically collect the saved positions from the buffer and save them to a GPX file at
+            midnight each day. You can force a GPX file to be written immediately and can clear saved positions out
+            the buffer using the buttons below.
+        </p>
+
+        <p><strong><span id="bufferSize">0</span> positions saved in the local buffer.</strong></p>
+
+        <p>
+            <button type="button" class="btn btn-primary" id="write-gpx-file-now">Save to GPX</button>
+            <button type="button" class="btn btn-warning" id="clear-buffer-now">Clear Buffer</button>
+        </p>
+
+        <div id="liveAlertPlaceholder"></div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5>GPX Files</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled" id="files">
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const baseUrl = '/plugins/signalk-daily-gpx-plugin';
+
+        async function showBufferSize() {
+            const bufferSizeSpan = document.getElementById('bufferSize');
+            try {
+                const response = await fetch(baseUrl + '/buffer-size');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                var data = await response.json();
+                bufferSizeSpan.innerText = data.size;
+
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function showFiles() {
+            const ul = document.getElementById('files');
+            ul.innerHTML = '';
+            try {
+                const response = await fetch(baseUrl + '/files');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                var files = await response.json();
+
+                // < 2 becasue we exclude the sqlite file - which is always there
+                if (!files || files.length < 2) {
+                    const li = document.createElement("li");
+                    li.textContent = 'No GPX files saved yet...';
+                    ul.appendChild(li);
+                } else {
+                    // reverse order so that most recent files are on top of the list
+                    // we skip the sqlite file
+                    for (let i = files.length - 2; i >= 0; i--) {
+                        const li = document.createElement("li");
+                        li.innerHTML = `<a href="${baseUrl}/files/${files[i]}">${files[i]}</a>`;
+                        ul.appendChild(li);
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function saveGpx() {
+            const response = await fetch(baseUrl + '/write-gpx-file-now');
+            var data = await response.json();
+            if (response.ok) {
+                appendAlert(data.message, 'success')
+            } else {
+                appendAlert(`Error: ${data.message}`, 'danger')
+            }
+            showFiles();
+        }
+
+        async function clearBuffer() {
+            const response = await fetch(baseUrl + '/clear-buffer-now');
+            if (response.ok) {
+                appendAlert('Buffer cleared', 'success');
+            } else {
+                appendAlert('Error clearing buffer', 'danger');
+            }
+            showBufferSize();
+        }
+
+        const alertPlaceholder = document.getElementById('liveAlertPlaceholder')
+
+        const appendAlert = (message, type) => {
+            const wrapper = document.createElement('div')
+            wrapper.innerHTML = [
+                `<div class="alert alert-${type} alert-dismissible" role="alert">`,
+                `   <div>${message}</div>`,
+                '   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>',
+                '</div>'
+            ].join('')
+
+            alertPlaceholder.append(wrapper)
+        }
+
+        document.getElementById('write-gpx-file-now').addEventListener('click', saveGpx);
+        document.getElementById('clear-buffer-now').addEventListener('click', clearBuffer);
+
+        showBufferSize();
+        showFiles();
+    </script>
+</body>
+
+</html>

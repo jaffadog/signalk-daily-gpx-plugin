@@ -1,5 +1,6 @@
 /*
  * signalk-daily-gpx-plugin
+ * Jeremy Waters <jaffadog@gmail.com>"
  */
 
 const GPX_LAT_LONG_DECIMAL_PLACES = 6;
@@ -7,14 +8,10 @@ const GPX_LAT_LONG_DECIMAL_PLACES = 6;
 const fs = require('fs');
 const filePath = require('path');
 const sqlite3 = require('sqlite3');
-const express = require('express');
-const expressApp = express();
-
 
 module.exports = function (app) {
     var plugin = {};
     var db;
-    var position;
     var previousSavedPosition;
     var gpsSource;
     var trackInterval;
@@ -34,8 +31,6 @@ module.exports = function (app) {
         trackInterval = options.trackInterval;
         minimumMoveDistance = options.minimumMoveDistance;
         gpxFolder = options.gpxFolder ? gpxFolder : app.getDataDirPath();
-
-        expressApp.use('/' + plugin.id, express.static(gpxFolder));
 
         var dbFile = filePath.join(app.getDataDirPath(), plugin.id + '.sqlite3');
         db = new sqlite3.Database(dbFile, function (err) {
@@ -80,7 +75,6 @@ module.exports = function (app) {
                 db.close(function (err) {
                     if (err) {
                         app.debug('error closing db', err);
-                        // resolve anyway...
                     }
                     resolve();
                 });
@@ -125,23 +119,40 @@ module.exports = function (app) {
         }
     };
 
-    // FIXME: make a simple webapp to expose buttons to trigger the actions below. or can we put buttons on the plugin config screen?
     plugin.registerWithRouter = (router) => {
         // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/write-gpx-file-now
         router.get('/write-gpx-file-now', (req, res) => {
             writeDailyGpxFile().then(
-                ok => {
-                    res.send(`Saved ${filename}`);
+                (ok) => {
+                    res.json({ "message": ok });
                 },
-                err => {
-                    res.send(`Error ${err}`);
+                (err) => {
+                    res.status(500).json({ "message": err });
                 }
             );
         });
+
         // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/clear-buffer-now
         router.get('/clear-buffer-now', (req, res) => {
             clearBuffer();
-            res.send(`buffer cleared at ${new Date().toISOString()}`);
+            res.json();
+        });
+
+        // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/buffer-size
+        router.get('/buffer-size', async (req, res) => {
+            var size = await getBufferSize();
+            res.json({ "size": size });
+        });
+
+        // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/files
+        router.get('/files', (req, res) => {
+            var files = fs.readdirSync(gpxFolder);
+            res.json(files);
+        });
+
+        // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/files/*
+        router.get('/files/:fileName', (req, res) => {
+            res.download(`${gpxFolder}/${req.params['fileName']}`);
         });
     };
 
@@ -152,32 +163,36 @@ module.exports = function (app) {
                 return;
             }
 
-            app.debug('row', row);
-
             if (row && row.timestamp) {
                 return row;
             }
         });
     };
 
-    function updatePluginStatus() {
-        app.debug('updating server status message');
-        db.get('SELECT COUNT(*) AS count FROM buffer', function (err, row) {
-            if (err) {
-                app.debug('Error querying the local buffer:', err);
-                return;
-            }
+    function getBufferSize() {
+        return new Promise(function (resolve, reject) {
+            db.get('SELECT COUNT(*) AS count FROM buffer', function (err, row) {
+                if (err) {
+                    app.debug('Error querying the local buffer:', err);
+                    resolve(0);
+                    return;
+                }
 
-            var message = row.count + (row.count == 1 ? ' entry' : ' entries') + ' in the local buffer.';
-
-            if (filename) {
-                // FIXME: the server only displays short messages - so have to keep it short
-                // message += ` Last GPX file saved ${Math.floor((new Date() - lastGpxFileDate)/1000/60)} minutes ago to ${filename}`;
-                message += ` Last GPX file saved ${filename}`;
-            }
-
-            app.setPluginStatus(message);
+                resolve(row.count);
+            });
         });
+    }
+
+    async function updatePluginStatus() {
+        app.debug('updating server status message');
+        var size = await getBufferSize();
+        var message = size + (size == 1 ? ' entry' : ' entries') + ' in the local buffer.';
+
+        if (filename) {
+            message += ` Last GPX file saved ${filename}`;
+        }
+
+        app.setPluginStatus(message);
     };
 
     async function processDelta(delta) {
@@ -193,44 +208,45 @@ module.exports = function (app) {
             return;
         }
 
-        position = update.values[0].value;
+        var position = update.values[0].value;
         position.timestamp = new Date(update.timestamp).getTime();
-
-        var newDay = false;
-
-        if (previousSavedPosition && new Date(position.timestamp).getDate() != new Date(previousSavedPosition.timestamp).getDate()) {
-            newDay = true;
-        }
 
         var distanceMoved;
 
         if (previousSavedPosition && minimumMoveDistance) {
-            distanceMoved = getDistanceFromLatLonInKm(previousSavedPosition.latitude, previousSavedPosition.longitude, position.latitude, position.longitude) * 1000;
-            app.debug('distanceMoved:', distanceMoved, minimumMoveDistance);
+            distanceMoved = getDistanceFromLatLonInMeters(previousSavedPosition.latitude, previousSavedPosition.longitude, position.latitude, position.longitude);
+            app.debug('distanceMoved:', distanceMoved.toFixed(1));
+            if (distanceMoved < minimumMoveDistance) {
+                app.debug(`Skipping this point. Did not move far enough ${distanceMoved.toFixed(1)} < ${minimumMoveDistance}`);
+                return;
+            }
         }
 
-        if (!previousSavedPosition || !minimumMoveDistance || distanceMoved >= minimumMoveDistance) {
-            await addPositionToBuffer();
-            previousSavedPosition = position;
-        } else {
-            app.debug('Skipping this point. Did not move far enough.', distanceMoved, minimumMoveDistance);
-        }
+        await addPositionToBuffer(position);
 
-        if (newDay) {
+        if (previousSavedPosition && new Date(position.timestamp).getDate() != new Date(previousSavedPosition.timestamp).getDate()) {
             app.debug('starting a new day - time to write the gpx file');
             try {
-                await writeDailyGpxFile();
-                // clear the buffer, but keep the position we just wrote so that it becomes the start point in the next gpx file so 
-                // that consecutive gpx files have no gaps in the track 
-                clearBuffer(position.timestamp);
+                // await writeDailyGpxFile();
+                writeDailyGpxFile().then(
+                    (ok) => {
+                        // clear the buffer, but keep the last position so that it becomes the start point in the next gpx file so 
+                        // that consecutive gpx files have no gaps in the track 
+                        clearBuffer(true);
+                    },
+                    (err) => {
+                        app.debug(`Error saving gpx ${err}`);
+                    }
+                );
             } catch (err) {
-                // dont clear the buffer if there was an error writing the gpx file
                 app.debug(`Error writing GPX file: ${err}`);
             }
         }
+
+        previousSavedPosition = position;
     };
 
-    async function addPositionToBuffer() {
+    async function addPositionToBuffer(position) {
         app.debug('Storing position in local buffer', position.timestamp, position.latitude, position.longitude);
         db.run('INSERT INTO buffer VALUES(?, ?, ?)', [position.timestamp, position.latitude, position.longitude], function (err) {
             if (err) {
@@ -242,7 +258,6 @@ module.exports = function (app) {
     };
 
     function writeDailyGpxFile() {
-        app.debug('enter writeDailyGpxFile');
         return new Promise(function (resolve, reject) {
             db.all('SELECT * FROM buffer ORDER BY ts', function (err, trackPoints) {
                 if (err) {
@@ -251,8 +266,8 @@ module.exports = function (app) {
                     return;
                 }
                 if (!trackPoints || trackPoints.length == 0) {
-                    app.debug('No trackPoints in the local buffer');
-                    reject("No trackPoints in the local buffer");
+                    app.debug('The local buffer is empty');
+                    reject("The local buffer is empty");
                     return;
                 }
 
@@ -287,10 +302,11 @@ module.exports = function (app) {
                     }
                 }
 
-                filename = filePath.join(gpxFolder, trackName + '.gpx');
-                app.debug('Writing gpx file', filename);
+                filename = trackName + '.gpx';
+                var fqFilename = filePath.join(gpxFolder, filename);
+                app.debug('Writing gpx file', fqFilename);
                 try {
-                    fs.writeFileSync(filename, gpx);
+                    fs.writeFileSync(fqFilename, gpx);
                 } catch (err) {
                     app.debug('Error writing gpx file:', err);
                     reject(err);
@@ -298,15 +314,15 @@ module.exports = function (app) {
                 }
 
                 updatePluginStatus();
-                app.debug('done Writing gpx file', filename);
-                resolve();
+                app.debug('done Writing gpx file', fqFilename);
+                resolve(`Saved ${filename}`);
             });
         });
     };
 
-    function clearBuffer(lastTs) {
+    function clearBuffer(keepLast) {
         app.debug('clearing buffer');
-        db.run('DELETE FROM buffer' + (lastTs ? ' where ts < ' + lastTs : ''), function (err) {
+        db.run('DELETE FROM buffer' + (keepLast ? ' where ts not in (select ts from buffer order by ts desc limit 1)' + lastTs : ''), function (err) {
             if (err) {
                 app.debug('Error clearing the local buffer:', err);
                 return;
@@ -316,8 +332,8 @@ module.exports = function (app) {
         });
     };
 
-    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-        var R = 6371; // Radius of the earth in km
+    function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+        var R = 6371000; // Radius of the earth in m
         var dLat = deg2rad(lat2 - lat1);  // deg2rad below
         var dLon = deg2rad(lon2 - lon1);
         var a =
@@ -326,7 +342,7 @@ module.exports = function (app) {
             Math.sin(dLon / 2) * Math.sin(dLon / 2)
             ;
         var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        var d = R * c; // Distance in km
+        var d = R * c; // Distance in m
         return d;
     };
 
