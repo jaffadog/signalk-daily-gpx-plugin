@@ -6,12 +6,13 @@
 const GPX_LAT_LONG_DECIMAL_PLACES = 6;
 
 const fs = require('fs');
-const filePath = require('path');
+const path = require('path');
 const Database = require('better-sqlite3');
 
 module.exports = function (app) {
     var plugin = {};
     var db;
+    var previousPosition;
     var previousSavedPosition;
     var filename;
     var bufferCount = 0;
@@ -34,7 +35,7 @@ module.exports = function (app) {
         minimumMoveDistance = options.minimumMoveDistance;
         gpxFolder = options.gpxFolder ? options.gpxFolder : app.getDataDirPath();
 
-        var dbFile = filePath.join(app.getDataDirPath(), plugin.id + '.sqlite3');
+        var dbFile = path.join(app.getDataDirPath(), plugin.id + '.sqlite3');
         db = new Database(dbFile, { verbose: app.debug });
         db.prepare('CREATE TABLE IF NOT EXISTS buffer(ts REAL, latitude REAL, longitude REAL)').run();
         previousSavedPosition = db.prepare('SELECT * FROM buffer order by ts desc limit 1').get();
@@ -92,16 +93,16 @@ module.exports = function (app) {
             trackInterval: {
                 title: 'Time Interval (minutes)',
                 type: 'number',
-                description: 'Number of minutes between recorded track points (default is 10 minutes)',
-                default: 10
+                description: 'Number of minutes between recorded track points (default is 5 minutes)',
+                default: 5
             },
             minimumMoveDistance: {
                 title: 'Minimum Move Distance (meters)',
                 type: 'number',
                 description: `The minimum boat movement in the specified time interval required before recording a track point. 
                     This prevents track recording while anchored or docked. If blank, the track is recorded regardless of movement. 
-                    (default is 100 meters)`,
-                default: 100
+                    (default is 50 meters)`,
+                default: 50
             },
             gpxFolder: {
                 title: 'Folder Path',
@@ -175,25 +176,9 @@ module.exports = function (app) {
         var position = update.values[0].value;
         position.ts = new Date(update.timestamp).getTime();
 
-        var distanceMoved;
-
-        if (previousSavedPosition && minimumMoveDistance) {
-            distanceMoved = getDistanceFromLatLonInMeters(previousSavedPosition.latitude, previousSavedPosition.longitude, position.latitude, position.longitude);
-            app.debug('distanceMoved:', distanceMoved.toFixed(1));
-        }
-
-        var newDay;
-
-        if (previousSavedPosition && new Date(position.ts).getDate() != new Date(previousSavedPosition.ts).getDate()) {
-            newDay = true;
-        }
-
-        if (!previousSavedPosition || !minimumMoveDistance || (distanceMoved && distanceMoved >= minimumMoveDistance)) {
-            addPositionToBuffer(position);
-            previousSavedPosition = position;
-        }
-
-        if (newDay && bufferCount > 1) {
+        // we use previousPosition rather than previousSavedPosition to ensure we only trigger this at midnight.
+        // if minimumMoveDistance is set, previousSavedPosition could be from a few days ago
+        if (previousPosition && new Date(position.ts).getDate() != new Date(previousPosition.ts).getDate() && bufferCount > 1) {
             app.debug('starting a new day - time to write the gpx file');
             try {
                 writeDailyGpxFile();
@@ -202,6 +187,15 @@ module.exports = function (app) {
                 app.debug(`Error writing GPX file: ${err}`);
             }
         }
+
+        if (!previousSavedPosition
+            || !minimumMoveDistance
+            || getDistanceFromLatLonInMeters(previousSavedPosition.latitude, previousSavedPosition.longitude, position.latitude, position.longitude) >= minimumMoveDistance) {
+            addPositionToBuffer(position);
+            previousSavedPosition = position;
+        }
+
+        previousPosition = position;
     };
 
     function addPositionToBuffer(position) {
@@ -248,7 +242,7 @@ module.exports = function (app) {
         }
 
         filename = trackName + '.gpx';
-        var fqFilename = filePath.join(gpxFolder, filename);
+        var fqFilename = path.join(gpxFolder, filename);
         app.debug('Writing gpx file', fqFilename);
         try {
             fs.writeFileSync(fqFilename, gpx);

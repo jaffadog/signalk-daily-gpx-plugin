@@ -22,7 +22,7 @@ Number of minutes between recorded track points (default is 10 minutes).
 
 ### Minimum Move Distance (meters)
 
-The minimum boat movement in the specified time interval required before recording a track point. This prevents track recording while anchored or docked. If blank, the track is recorded regardless of movement. (default is 100 meters)
+The minimum boat movement in the specified time interval required before recording a track point. This prevents track recording while anchored or docked. If blank, the track is recorded regardless of movement. (default is 50 meters)
 
 ### Folder Path
 
@@ -32,14 +32,6 @@ Folder path to save GPX files in. If left blank, default is:
 
 ## Extras
 
-If your travels take you across timezones, you could use the [signalk-set-gps-timezone](https://github.com/hoeken/signalk-set-gps-timezone) plugin to automatically update your SignalK server's timezone. That way, GPX files will always be written at midnight in your local timezone - and capture the full day of travel with a local timezone context.
+This plugin includes a SignalK webapp (also named **SignalK Daily GPX Plugin**) which facilitates downloading GPX files and managing the local buffer.
 
-For testing and experimenting, the following methods are provided.
-
-If you want to force a GPX file to be written right now, use:
-
-    http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/write-gpx-file-now. 
-
-If you want to clear the local cache, use:
-
-    http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/clear-buffer-now.
+If your travels take you across timezones, you could use the [signalk-set-gps-timezone](https://github.com/hoeken/signalk-set-gps-timezone) plugin to automatically update your SignalK server's timezone. That way, GPX files will always be written at midnight in your local timezone - and capture the full day of travel with an ongoing local timezone context.
