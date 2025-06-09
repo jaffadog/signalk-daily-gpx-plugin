@@ -4,23 +4,31 @@
  */
 
 const GPX_LAT_LONG_DECIMAL_PLACES = 6;
+const METERS_PER_DEG_LAT = 111120;
+const KNOTS_PER_M_PER_S = 1.94384;
+
+const DEFAULT_TRACK_INTERVAL = 1;
+const DEFAULT_MINIMUM_SPEED = 0.5;
+const DEFAULT_SIMPLIFICATION_TOLERANCE = 10;
 
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 
+const simplify = require('./simplify.js');
+
 module.exports = function (app) {
     var plugin = {};
     var db;
     var previousPosition;
-    var previousSavedPosition;
     var filename;
     var bufferCount = 0;
     var unsubscribes = [];
 
     var gpsSource;
     var trackInterval;
-    var minimumMoveDistance;
+    var minimumSpeed;
+    var simplificationTolerance;
     var gpxFolder;
 
     plugin.id = "signalk-daily-gpx-plugin";
@@ -28,27 +36,28 @@ module.exports = function (app) {
     plugin.description = "A SignalK plugin that writes a daily GPX file";
 
     plugin.start = function (options) {
-        app.debug('Plugin started');
+        app.debug('Plugin started with options=', options);
 
         gpsSource = options.gpsSource;
-        trackInterval = options.trackInterval;
-        minimumMoveDistance = options.minimumMoveDistance;
+        trackInterval = options.trackInterval || DEFAULT_TRACK_INTERVAL;
+        minimumSpeed = options.minimumSpeed ?? DEFAULT_MINIMUM_SPEED;
+        simplificationTolerance = options.simplificationTolerance ?? DEFAULT_SIMPLIFICATION_TOLERANCE;
         gpxFolder = options.gpxFolder ? options.gpxFolder : app.getDataDirPath();
 
         var dbFile = path.join(app.getDataDirPath(), plugin.id + '.sqlite3');
         db = new Database(dbFile, { verbose: app.debug });
         db.prepare('CREATE TABLE IF NOT EXISTS buffer(ts REAL, latitude REAL, longitude REAL)').run();
-        previousSavedPosition = db.prepare('SELECT * FROM buffer order by ts desc limit 1').get();
-        app.debug('loaded previousSavedPosition from buffer', previousSavedPosition);
 
         bufferCount = getBufferCount();
 
         var localSubscription = {
             context: 'vessels.self',
-            subscribe: [{
-                path: 'navigation.position',
-                period: trackInterval * 60 * 1000
-            }]
+            subscribe: [
+                {
+                    path: 'navigation.position',
+                    period: trackInterval * 60 * 1000
+                }
+            ]
         };
 
         app.subscriptionmanager.subscribe(
@@ -80,10 +89,10 @@ module.exports = function (app) {
 
     plugin.schema = {
         type: 'object',
-        description: `NOTE: The plugin will store track positions in a local buffer and will write the gpx file after 
-            midnight every day (per the signal K server clock). You can see the list of available gpx files in the 
+        description: `NOTE: The plugin will store track positions in a local buffer and will write the gpx file at 
+            midnight (per the signal K server clock). You can review and download available gpx files in the 
             SignalK Daily GPX Plugin webapp.`,
-        required: ['trackInterval', 'minimumMoveDistance'],
+        required: ['trackInterval', 'minimumSpeed', 'simplificationTolerance'],
         properties: {
             gpsSource: {
                 title: 'GPS Position Source',
@@ -93,16 +102,27 @@ module.exports = function (app) {
             trackInterval: {
                 title: 'Time Interval (minutes)',
                 type: 'number',
-                description: 'Number of minutes between recorded track points (default is 5 minutes)',
-                default: 5
+                minimum: 0.1,
+                description: `Number of minutes between recorded track positions (default is ${DEFAULT_TRACK_INTERVAL} minutes)`,
+                default: DEFAULT_TRACK_INTERVAL
             },
-            minimumMoveDistance: {
-                title: 'Minimum Move Distance (meters)',
+            minimumSpeed: {
+                title: 'Minimum Speed (knots)',
                 type: 'number',
-                description: `The minimum boat movement in the specified time interval required before recording a track point. 
-                    This prevents track recording while anchored or docked. If blank, the track is recorded regardless of movement. 
-                    (default is 50 meters)`,
-                default: 50
+                minimum: 0,
+                description: `The minimum speed over ground (SOG) required to trigger track recording. This prevents track 
+                recording while anchored or docked. If set to 0, the track is recorded at the specified time interval regardless 
+                of boat speed. (default is ${DEFAULT_MINIMUM_SPEED} knots)`,
+                default: DEFAULT_MINIMUM_SPEED
+            },
+            simplificationTolerance: {
+                title: 'Track Simplification Tolerance (meters)',
+                type: 'number',
+                minimum: 0,
+                description: `Simplify the saved track - by removing points where the track is pretty straight and keeping points where direction 
+                    changes. This produces a much smaller GPX file while maintaining good path resolution. If set to 0, track simplification will be
+                    disabled and the track will be saved at the full recorded resolution (default is ${DEFAULT_SIMPLIFICATION_TOLERANCE} meters)`,
+                default: DEFAULT_SIMPLIFICATION_TOLERANCE
             },
             gpxFolder: {
                 title: 'Folder Path',
@@ -132,7 +152,7 @@ module.exports = function (app) {
 
         // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/buffer-count
         router.get('/buffer-count', (req, res) => {
-            res.json(bufferCount);
+            res.json({ "count": bufferCount });
         });
 
         // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/files
@@ -176,8 +196,6 @@ module.exports = function (app) {
         var position = update.values[0].value;
         position.ts = new Date(update.timestamp).getTime();
 
-        // we use previousPosition rather than previousSavedPosition to ensure we only trigger this at midnight.
-        // if minimumMoveDistance is set, previousSavedPosition could be from a few days ago
         if (previousPosition && new Date(position.ts).getDate() != new Date(previousPosition.ts).getDate() && bufferCount > 1) {
             app.debug('starting a new day - time to write the gpx file');
             try {
@@ -188,11 +206,12 @@ module.exports = function (app) {
             }
         }
 
-        if (!previousSavedPosition
-            || !minimumMoveDistance
-            || getDistanceFromLatLonInMeters(previousSavedPosition.latitude, previousSavedPosition.longitude, position.latitude, position.longitude) >= minimumMoveDistance) {
+        var sog = app.getSelfPath("navigation.speedOverGround").value * KNOTS_PER_M_PER_S;
+
+        if (bufferCount == 0
+            || !minimumSpeed
+            || sog >= minimumSpeed) {
             addPositionToBuffer(position);
-            previousSavedPosition = position;
         }
 
         previousPosition = position;
@@ -206,10 +225,17 @@ module.exports = function (app) {
     };
 
     function writeDailyGpxFile() {
-        const trackPoints = db.prepare('SELECT * FROM buffer order by ts').all();
+        var trackPoints = db.prepare('SELECT * FROM buffer order by ts').all();
 
         if (!trackPoints || trackPoints.length == 0) {
             throw new Error('The local buffer is empty');
+        }
+
+        app.debug(`${trackPoints.length} positions in buffer`);
+
+        if (simplificationTolerance && simplificationTolerance > 0) {
+            trackPoints = simplify(trackPoints, simplificationTolerance / METERS_PER_DEG_LAT, true);
+            app.debug(`Simplified track to ${trackPoints.length} positions with simplification tolerance ${simplificationTolerance}`);
         }
 
         app.debug(`Writing ${trackPoints.length} positions to gpx file`);
@@ -260,24 +286,6 @@ module.exports = function (app) {
         db.prepare('DELETE FROM buffer' + (keepLast ? ' where ts not in (select ts from buffer order by ts desc limit 1)' : '')).run();
         bufferCount = keepLast ? 1 : 0;
         updatePluginStatus();
-    };
-
-    function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
-        var R = 6371000; // Radius of the earth in m
-        var dLat = deg2rad(lat2 - lat1);  // deg2rad below
-        var dLon = deg2rad(lon2 - lon1);
-        var a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2)
-            ;
-        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        var d = R * c; // Distance in m
-        return d;
-    };
-
-    function deg2rad(deg) {
-        return deg * (Math.PI / 180)
     };
 
     return plugin;

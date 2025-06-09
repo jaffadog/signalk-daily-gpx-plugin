@@ -49,8 +49,8 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
-                var count = await response.json();
-                bufferCountSpan.innerText = count;
+                var data = await response.json();
+                bufferCountSpan.innerText = data.count;
 
             } catch (error) {
                 console.error(error);
@@ -73,7 +73,6 @@
                     ul.appendChild(li);
                 } else {
                     // reverse order so that most recent files are on top of the list
-                    // we skip the sqlite file
                     for (let i = files.length - 1; i >= 0; i--) {
                         const li = document.createElement("li");
                         li.innerHTML = `<a href="${baseUrl}/files/${files[i]}">${files[i]}</a>`;

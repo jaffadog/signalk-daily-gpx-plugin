@@ -18,11 +18,18 @@ If there are multiple sources of **navigation.position**, then specify which one
 
 ### Time Interval
 
-Number of minutes between recorded track points (default is 10 minutes).
+Number of minutes between recorded track positions (default is 1 minute).
 
-### Minimum Move Distance (meters)
+### Minimum Speed (knots)
 
-The minimum boat movement in the specified time interval required before recording a track point. This prevents track recording while anchored or docked. If blank, the track is recorded regardless of movement. (default is 50 meters)
+The minimum speed over ground (SOG) required to trigger track recording. This prevents track recording while anchored or docked. If blank, the track 
+is recorded at the specified time interval regardless of speed. (default is 0.5 knots).
+
+### Track Simplification Tolerance (meters)
+
+Simplify the saved track - by removing points where the track is pretty straight and keeping points where direction changes. This produces a much 
+smaller GPX file while maintaining good path resolution. If blank, track simplification will be disabled and the track will be saved at the full 
+recorded resolution (default is 10 meters).
 
 ### Folder Path
 
