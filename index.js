@@ -4,12 +4,15 @@
  */
 
 const GPX_LAT_LONG_DECIMAL_PLACES = 6;
+const GPX_DEPTH_DECIMAL_PLACES = 2;
 const METERS_PER_DEG_LAT = 111120;
 const KNOTS_PER_M_PER_S = 1.94384;
+const MAX_DEPTH_AGE_IN_MILLIS = 10000;
 
 const DEFAULT_TRACK_INTERVAL = 1;
 const DEFAULT_MINIMUM_SPEED = 0.5;
 const DEFAULT_SIMPLIFICATION_TOLERANCE = 10;
+const DEFAULT_RECORD_DEPTH = false;
 
 const fs = require('fs');
 const path = require('path');
@@ -29,6 +32,7 @@ module.exports = function (app) {
     var trackInterval;
     var minimumSpeed;
     var simplificationTolerance;
+    var recordDepth;
     var gpxFolder;
 
     plugin.id = "signalk-daily-gpx-plugin";
@@ -42,11 +46,27 @@ module.exports = function (app) {
         trackInterval = options.trackInterval || DEFAULT_TRACK_INTERVAL;
         minimumSpeed = options.minimumSpeed ?? DEFAULT_MINIMUM_SPEED;
         simplificationTolerance = options.simplificationTolerance ?? DEFAULT_SIMPLIFICATION_TOLERANCE;
+        recordDepth = options.recordDepth ?? DEFAULT_RECORD_DEPTH;
         gpxFolder = options.gpxFolder ? options.gpxFolder : app.getDataDirPath();
 
         var dbFile = path.join(app.getDataDirPath(), plugin.id + '.sqlite3');
         db = new Database(dbFile, { verbose: app.debug });
-        db.prepare('CREATE TABLE IF NOT EXISTS buffer(ts REAL, latitude REAL, longitude REAL)').run();
+        db.prepare('CREATE TABLE IF NOT EXISTS buffer(ts REAL, latitude REAL, longitude REAL, depth REAL)').run();
+
+        var dbVersion = db.pragma('user_version', { simple: true });
+        app.debug('DB Version', dbVersion);
+
+        if (dbVersion < 1) {
+            try {
+                app.debug('updating db to version 1');
+                db.prepare("ALTER TABLE buffer ADD COLUMN depth REAL").run();
+                db.pragma('user_version = 1');
+                dbVersion = 1;
+            }
+            catch (error) {
+                app.error("error updating db", error);
+            }
+        }
 
         bufferCount = getBufferCount();
 
@@ -80,7 +100,7 @@ module.exports = function (app) {
                 try {
                     db.close();
                 } catch (err) {
-                    app.debug('error closing db', err);
+                    app.error('error closing db', err);
                 }
             }
             resolve();
@@ -124,6 +144,12 @@ module.exports = function (app) {
                     disabled and the track will be saved at the full recorded resolution (default is ${DEFAULT_SIMPLIFICATION_TOLERANCE} meters)`,
                 default: DEFAULT_SIMPLIFICATION_TOLERANCE
             },
+            recordDepth: {
+                title: 'Record Depth?',
+                type: 'boolean',
+                description: `Record the current depth (from water surface) at each track point using the Garmin extension format (default is ${DEFAULT_RECORD_DEPTH})`,
+                default: DEFAULT_RECORD_DEPTH
+            },
             gpxFolder: {
                 title: 'Folder Path',
                 type: 'string',
@@ -139,7 +165,7 @@ module.exports = function (app) {
                 var message = writeDailyGpxFile();
                 res.json({ "message": message });
             } catch (err) {
-                app.debug('err', err);
+                app.error('error', err);
                 res.status(500).json({ "message": err.message });
             }
         });
@@ -196,13 +222,20 @@ module.exports = function (app) {
         var position = update.values[0].value;
         position.ts = new Date(update.timestamp).getTime();
 
+        if (recordDepth) {
+            var depth = app.getSelfPath("environment.depth.belowSurface");
+            if (depth && depth.value && depth.timestamp && Date.now() - new Date(depth.timestamp).getTime() < MAX_DEPTH_AGE_IN_MILLIS) {
+                position.depth = depth.value;
+            }
+        }
+
         if (previousPosition && new Date(position.ts).getDate() != new Date(previousPosition.ts).getDate() && bufferCount > 1) {
             app.debug('starting a new day - time to write the gpx file');
             try {
                 writeDailyGpxFile();
                 clearBuffer(true);
             } catch (err) {
-                app.debug(`Error writing GPX file: ${err}`);
+                app.error(`Error writing GPX file: ${err}`);
             }
         }
 
@@ -219,7 +252,7 @@ module.exports = function (app) {
 
     function addPositionToBuffer(position) {
         app.debug('Storing position in local buffer', position.ts, position.latitude, position.longitude);
-        db.prepare('INSERT INTO buffer VALUES(?, ?, ?)').run(position.ts, position.latitude, position.longitude);
+        db.prepare('INSERT INTO buffer VALUES(?, ?, ?, ?)').run(position.ts, position.latitude, position.longitude, position.depth);
         bufferCount++;
         updatePluginStatus();
     };
@@ -251,10 +284,23 @@ module.exports = function (app) {
             + lastTrackPointDate.getMinutes().toString().padStart(2, "0");
 
         app.debug('trackName', trackName);
-        var gpx = `<?xml version="1.0" encoding="UTF-8"?><gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="${plugin.name}"><trk><name>${trackName}</name><trkseg>\n`;
+        var gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" 
+version="1.1" creator="${plugin.name}"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
+xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd
+http://www.garmin.com/xmlschemas/TrackPointExtension/v1 https://www8.garmin.com/xmlschemas/TrackPointExtensionv1.xsd">
+<trk><name>${trackName}</name><trkseg>\n`;
 
         for (let trackPoint of trackPoints) {
-            gpx += `<trkpt lat="${trackPoint.latitude.toFixed(GPX_LAT_LONG_DECIMAL_PLACES)}" lon="${trackPoint.longitude.toFixed(GPX_LAT_LONG_DECIMAL_PLACES)}"><time>${new Date(trackPoint.ts).toISOString()}</time></trkpt>\n`;
+            gpx += `<trkpt lat="${trackPoint.latitude.toFixed(GPX_LAT_LONG_DECIMAL_PLACES)}" lon="${trackPoint.longitude.toFixed(GPX_LAT_LONG_DECIMAL_PLACES)}"><time>${new Date(trackPoint.ts).toISOString()}</time>`;
+
+            if (recordDepth && trackPoint.depth) {
+                gpx += `<extensions><gpxtpx:TrackPointExtension><gpxtpx:depth>${trackPoint.depth.toFixed(GPX_DEPTH_DECIMAL_PLACES)}</gpxtpx:depth></gpxtpx:TrackPointExtension></extensions>`;
+            }
+
+            gpx += `</trkpt>\n`;
         }
 
         gpx += '</trkseg></trk></gpx>';

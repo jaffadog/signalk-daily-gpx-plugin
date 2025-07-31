@@ -1,6 +1,6 @@
 {
   "name": "signalk-daily-gpx-plugin",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "A SignalK plugin that writes a daily GPX file",
   "keywords": [
     "signalk-node-server-plugin",
