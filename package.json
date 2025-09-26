@@ -1,7 +1,7 @@
 {
   "name": "signalk-daily-gpx-plugin",
-  "version": "0.1.0",
-  "description": "A SignalK plugin that writes a daily GPX file",
+  "version": "0.2.0",
+  "description": "Records your track and generates either daily or per-voyage GPX files",
   "keywords": [
     "signalk-node-server-plugin",
     "signalk-webapp",
@@ -17,7 +17,10 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "better-sqlite3": "^11.9.1"
@@ -29,5 +32,14 @@
   "bugs": {
     "url": "https://github.com/jaffadog/signalk-daily-gpx-plugin/issues"
   },
-  "homepage": "https://github.com/jaffadog/signalk-daily-gpx-plugin"
+  "homepage": "https://github.com/jaffadog/signalk-daily-gpx-plugin",
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.36.0",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2"
+  }
 }
