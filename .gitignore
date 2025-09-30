@@ -137,3 +137,6 @@ dist
 /.project
 /.settings/
 /notes.txt
+
+# signalk webapp directory - produced by vite build
+public

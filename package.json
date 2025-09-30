@@ -9,21 +9,27 @@
   ],
   "signalk-plugin-enabled-by-default": false,
   "signalk": {
-    "appIcon": "./assets/icons/icon-72x72.png",
+    "appIcon": "assets/icon-72x72.png",
     "displayName": "SignalK Daily GPX Plugin"
   },
   "license": "MIT",
   "author": "Jeremy Waters <jaffadog@gmail.com>",
-  "type": "commonjs",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "npx prettier . --write",
+    "format:check": "npx prettier . --check",
     "lint": "eslint .",
-    "lint:fix": "eslint --fix .",
-    "format": "prettier --write ."
+    "build": "vite build",
+    "dev": "vite",
+    "prepare": "npm run build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "better-sqlite3": "^11.9.1"
+    "better-sqlite3": "^11.9.1",
+    "bootstrap": "^5.3.8",
+    "simplify-js": "^1.2.4"
   },
   "repository": {
     "type": "git",
@@ -34,12 +40,11 @@
   },
   "homepage": "https://github.com/jaffadog/signalk-daily-gpx-plugin",
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.36.0",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
     "globals": "^16.4.0",
-    "prettier": "^3.6.2"
+    "prettier": "3.6.2",
+    "vite": "^7.1.7"
   }
 }
