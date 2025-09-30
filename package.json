@@ -15,7 +15,7 @@
   "license": "MIT",
   "author": "Jeremy Waters <jaffadog@gmail.com>",
   "type": "module",
-  "main": "index.js",
+  "main": "plugin/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "npx prettier . --write",
@@ -23,8 +23,8 @@
     "lint": "eslint .",
     "build": "vite build",
     "dev": "vite",
-    "prepublishOnly": "npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "better-sqlite3": "^11.9.1",
