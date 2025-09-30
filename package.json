@@ -23,7 +23,7 @@
     "lint": "eslint .",
     "build": "vite build",
     "dev": "vite",
-    "prepare": "npm run build",
+    "prepublish ": "npm run build",
     "preview": "vite preview"
   },
   "dependencies": {

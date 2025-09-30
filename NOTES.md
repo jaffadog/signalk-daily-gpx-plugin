@@ -14,6 +14,7 @@ if you get a 404 error when trying to publish, do adduser again
 
 # gpx depth extension
 
+```
 <trkpt lat="37.7749" lon="-122.4194">
   <ele>10.5</ele>
   <time>2023-10-27T12:00:00Z</time>
@@ -26,11 +27,11 @@ if you get a 404 error when trying to publish, do adduser again
 
 <?xml version="1.0" encoding="utf-8"?>
 
-<gpx xmlns:tc2="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" 
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-xmlns:tp1="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" 
-xmlns="http://www.topografix.com/GPX/1/1" 
-version="1.1" creator="TC2 to GPX11 XSLT stylesheet" 
+<gpx xmlns:tc2="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xmlns:tp1="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
+xmlns="http://www.topografix.com/GPX/1/1"
+version="1.1" creator="TC2 to GPX11 XSLT stylesheet"
 xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/TrackPointExtension/v1 http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd">
 <trk>
 <name>2013-12-03T21:08:56Z</name>
@@ -50,3 +51,4 @@ xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/
 </trkseg>
 </trk>
 </gpx>
+```
