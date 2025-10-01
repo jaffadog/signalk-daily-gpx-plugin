@@ -84,19 +84,18 @@ export default function (app) {
 
   plugin.stop = function () {
     app.debug(`Stopping the plugin`);
-    return new Promise(function (resolve) {
-      unsubscribes.forEach((f) => f());
-      unsubscribes = [];
-      if (db) {
-        app.debug("closing db");
-        try {
-          db.close();
-        } catch (err) {
-          app.error("error closing db", err);
-        }
+    unsubscribes.forEach((f) => f());
+    unsubscribes = [];
+    if (db) {
+      app.debug("Closing db");
+      try {
+        db.close();
+      } catch (err) {
+        app.error("error closing db", err);
       }
-      resolve();
-    });
+    }
+    db = null;
+    app.debug("Stopped");
   };
 
   plugin.schema = {
@@ -172,40 +171,65 @@ export default function (app) {
 
   plugin.registerWithRouter = (router) => {
     // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/write-gpx-file-now
-    router.get("/write-gpx-file-now", (req, res) => {
+    router.get("/write-gpx-file-now", (_req, res) => {
       try {
+        isPluginRunning();
         var message = writeDailyGpxFile(getYyyymmddhhmm(new Date()));
         res.json({ message: message });
-      } catch (err) {
-        app.error("error", err);
-        res.status(500).json({ message: err.message });
+      } catch (error) {
+        app.error(error);
+        res.status(500).send(error.message);
       }
     });
 
     // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/clear-buffer-now
-    router.get("/clear-buffer-now", (req, res) => {
-      clearBuffer();
-      res.json();
+    router.get("/clear-buffer-now", (_req, res) => {
+      try {
+        isPluginRunning();
+        clearBuffer();
+        res.json();
+      } catch (error) {
+        app.error(error);
+        res.status(500).send(error.message);
+      }
     });
 
     // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/buffer-count
-    router.get("/buffer-count", (req, res) => {
+    router.get("/buffer-count", (_req, res) => {
       res.json({ count: bufferCount });
     });
 
     // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/files
-    router.get("/files", (req, res) => {
-      var files = fs.readdirSync(gpxFolder).filter(function (file) {
-        return file.endsWith(".gpx");
-      });
-      res.json(files.slice(-100)); // limit to the 100 most recent files
+    router.get("/files", (_req, res) => {
+      try {
+        isPluginRunning();
+        var files = fs.readdirSync(gpxFolder).filter(function (file) {
+          return file.endsWith(".gpx");
+        });
+        res.json(files.slice(-100)); // limit to the 100 most recent files
+      } catch (error) {
+        app.error(error);
+        res.status(500).send(error.message);
+      }
     });
 
     // http://raspberrypi.local/plugins/signalk-daily-gpx-plugin/files/:filename
     router.get("/files/:fileName", (req, res) => {
-      res.download(`${gpxFolder}/${req.params["fileName"]}`);
+      try {
+        isPluginRunning();
+        res.download(`${gpxFolder}/${req.params["fileName"]}`);
+      } catch (error) {
+        app.error(error);
+        res.status(500).send(error.message);
+      }
     });
   };
+
+  function isPluginRunning() {
+    if (!db || !gpxFolder) {
+      throw new Error("Missing configuration. Is the plugin enabled?");
+    }
+  }
 
   function updatePluginStatus() {
     app.debug("updating server status message");

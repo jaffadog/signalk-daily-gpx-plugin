@@ -13,6 +13,10 @@ async function showBufferCount() {
     bufferCountSpan.innerText = data.count;
   } catch (error) {
     console.error(error);
+    appendAlert(
+      `Error getting position buffer count: ${error.message}`,
+      "danger",
+    );
   }
 }
 
@@ -40,29 +44,39 @@ async function showFiles() {
     }
   } catch (error) {
     console.error(error);
-    appendAlert(`Error getting list of gpx files: ${error}`, "danger");
+    appendAlert(`Error getting list of gpx files: ${error.message}`, "danger");
   }
 }
 
 async function saveGpx() {
-  const response = await fetch(baseUrl + "/write-gpx-file-now");
-  var data = await response.json();
-  if (response.ok) {
-    appendAlert(data.message, "success");
-  } else {
-    appendAlert(`Error: ${data.message}`, "danger");
+  try {
+    const response = await fetch(baseUrl + "/write-gpx-file-now");
+    if (response.ok) {
+      var data = await response.json();
+      appendAlert(data.message, "success");
+    } else {
+      throw new Error(await response.text());
+    }
+    showFiles();
+  } catch (error) {
+    console.error(error);
+    appendAlert(`Error saving gpx file: ${error.message}`, "danger");
   }
-  showFiles();
 }
 
 async function clearBuffer() {
-  const response = await fetch(baseUrl + "/clear-buffer-now");
-  if (response.ok) {
-    appendAlert("Buffer cleared", "success");
-  } else {
-    appendAlert("Error clearing buffer", "danger");
+  try {
+    const response = await fetch(baseUrl + "/clear-buffer-now");
+    if (response.ok) {
+      appendAlert("Buffer cleared", "success");
+    } else {
+      throw new Error(await response.text());
+    }
+    showBufferCount();
+  } catch (error) {
+    console.error(error);
+    appendAlert(`Error clearing buffer: ${error.message}`, "danger");
   }
-  showBufferCount();
 }
 
 const alertPlaceholder = document.getElementById("liveAlertPlaceholder");
