@@ -1,6 +1,6 @@
 import js from "@eslint/js";
-import globals from "globals";
 import { defineConfig, globalIgnores } from "eslint/config";
+import globals from "globals";
 import eslintConfigPrettier from "eslint-config-prettier/flat";
 
 export default defineConfig([
@@ -9,9 +9,11 @@ export default defineConfig([
     plugins: { js },
     extends: ["js/recommended"],
     languageOptions: {
+      sourceType: "module",
       globals: {
         ...globals.browser,
         ...globals.node,
+        ...globals.mocha,
       },
     },
   },

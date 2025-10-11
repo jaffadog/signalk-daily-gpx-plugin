@@ -1,6 +1,6 @@
 {
   "name": "signalk-daily-gpx-plugin",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Records your track and generates either daily or per-voyage GPX files",
   "keywords": [
     "signalk-node-server-plugin",
@@ -17,7 +17,7 @@
   "type": "module",
   "main": "plugin/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "mocha",
     "format": "npx prettier . --write",
     "format:check": "npx prettier . --check",
     "lint": "eslint .",
@@ -29,6 +29,7 @@
   "dependencies": {
     "better-sqlite3": "^11.9.1",
     "bootstrap": "^5.3.8",
+    "proj4": "^2.19.10",
     "simplify-js": "^1.2.4"
   },
   "repository": {
@@ -44,6 +45,7 @@
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^16.4.0",
+    "mocha": "^11.7.4",
     "prettier": "3.6.2",
     "vite": "^7.1.7"
   }

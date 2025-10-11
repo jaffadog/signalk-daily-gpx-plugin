@@ -5,7 +5,6 @@
 
 const GPX_LAT_LONG_DECIMAL_PLACES = 6;
 const GPX_DEPTH_DECIMAL_PLACES = 2;
-const METERS_PER_DEG_LAT = 111120;
 const KNOTS_PER_M_PER_S = 1.94384;
 const MAX_DEPTH_AGE_IN_MILLIS = 10000;
 
@@ -20,6 +19,7 @@ import fs from "fs";
 import path from "path";
 import Database from "better-sqlite3";
 import simplify from "simplify-js";
+import proj4 from "proj4";
 
 export default function (app) {
   var plugin = {};
@@ -60,7 +60,6 @@ export default function (app) {
     setupSchema();
 
     bufferCount = getBufferCount();
-    lastRecordedPosition = getLastPositionFromBuffer();
 
     var localSubscription = {
       context: "vessels.self",
@@ -399,10 +398,6 @@ export default function (app) {
     return db.prepare("SELECT COUNT(*) AS count FROM buffer").get().count;
   }
 
-  function getLastPositionFromBuffer() {
-    return db.prepare("SELECT * FROM buffer order by ts desc limit 1").get();
-  }
-
   function addPositionToBuffer(position) {
     app.debug(
       "Storing position in local buffer",
@@ -442,11 +437,7 @@ export default function (app) {
     app.debug(`${trackPoints.length} positions in buffer`);
 
     if (simplificationTolerance && simplificationTolerance > 0) {
-      trackPoints = simplify(
-        trackPoints,
-        simplificationTolerance / METERS_PER_DEG_LAT,
-        true,
-      );
+      trackPoints = simplifyTrack(trackPoints, simplificationTolerance);
       app.debug(
         `Simplified track to ${trackPoints.length} positions with simplification tolerance ${simplificationTolerance}`,
       );
@@ -520,4 +511,28 @@ http://www.garmin.com/xmlschemas/TrackPointExtension/v1 https://www8.garmin.com/
   }
 
   return plugin;
+}
+
+export function simplifyTrack(trackPoints, simplificationTolerance) {
+  // EPSG:4326 = WGS84 (lat/lon degrees)
+  // EPSG:3857 = Web Mercator (x/y in meters)
+  const projWGS84 = "EPSG:4326";
+  const projWebMerc = "EPSG:3857";
+
+  // project lat/lon degrees to x/y meter coordinates
+  trackPoints.forEach((trackPoint) => {
+    [trackPoint.x, trackPoint.y] = proj4(projWGS84, projWebMerc, [
+      trackPoint.longitude,
+      trackPoint.latitude,
+    ]);
+  });
+
+  // Simplify (tolerance in meters)
+  const simplifiedTrackPoints = simplify(
+    trackPoints,
+    simplificationTolerance,
+    true,
+  );
+
+  return simplifiedTrackPoints;
 }
