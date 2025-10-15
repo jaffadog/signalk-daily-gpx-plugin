@@ -1,6 +1,6 @@
 {
   "name": "signalk-daily-gpx-plugin",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Records your track and generates either daily or per-voyage GPX files",
   "keywords": [
     "signalk-node-server-plugin",
@@ -21,9 +21,9 @@
     "format": "npx prettier . --write",
     "format:check": "npx prettier . --check",
     "lint": "eslint .",
-		"build:web": "vite build",
-		"build:plugin": "rollup -c",
-		"build": "npm run build:web && npm run build:plugin",
+    "build:web": "vite build",
+    "build:plugin": "rollup -c",
+    "build": "npm run build:web && npm run build:plugin",
     "dev": "vite",
     "preview": "vite preview",
     "prepublishOnly": "npm run build"
