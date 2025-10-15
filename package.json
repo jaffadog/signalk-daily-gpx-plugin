@@ -14,14 +14,16 @@
   },
   "license": "MIT",
   "author": "Jeremy Waters <jaffadog@gmail.com>",
-  "type": "module",
-  "main": "plugin/index.js",
+  "main": "plugin/index.cjs",
+  "type": "commonjs",
   "scripts": {
     "test": "mocha",
     "format": "npx prettier . --write",
     "format:check": "npx prettier . --check",
     "lint": "eslint .",
-    "build": "vite build",
+		"build:web": "vite build",
+		"build:plugin": "rollup -c",
+		"build": "npm run build:web && npm run build:plugin",
     "dev": "vite",
     "preview": "vite preview",
     "prepublishOnly": "npm run build"
@@ -47,6 +49,8 @@
     "globals": "^16.4.0",
     "mocha": "^11.7.4",
     "prettier": "3.6.2",
+    "@rollup/plugin-json": "^6.1.0",
+    "rollup": "^4.52.4",
     "vite": "^7.1.7"
   }
 }
