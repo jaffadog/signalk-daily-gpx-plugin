@@ -1,6 +1,6 @@
 {
   "name": "signalk-daily-gpx-plugin",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Records your track and generates either daily or per-voyage GPX files",
   "keywords": [
     "signalk-node-server-plugin",
