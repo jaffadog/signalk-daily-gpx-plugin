@@ -5,6 +5,7 @@ export default {
   output: {
     file: "plugin/index.cjs",
     format: "cjs",
+    // esModule: false
   },
   // plugins: [json()],
   // external: ["node:fs"],

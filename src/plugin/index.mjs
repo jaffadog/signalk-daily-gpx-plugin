@@ -510,29 +510,29 @@ http://www.garmin.com/xmlschemas/TrackPointExtension/v1 https://www8.garmin.com/
     return deg * (Math.PI / 180);
   }
 
+  function simplifyTrack(trackPoints, simplificationTolerance) {
+    // EPSG:4326 = WGS84 (lat/lon degrees)
+    // EPSG:3857 = Web Mercator (x/y in meters)
+    const projWGS84 = "EPSG:4326";
+    const projWebMerc = "EPSG:3857";
+
+    // project lat/lon degrees to x/y meter coordinates
+    trackPoints.forEach((trackPoint) => {
+      [trackPoint.x, trackPoint.y] = proj4(projWGS84, projWebMerc, [
+        trackPoint.longitude,
+        trackPoint.latitude,
+      ]);
+    });
+
+    // Simplify (tolerance in meters)
+    const simplifiedTrackPoints = simplify(
+      trackPoints,
+      simplificationTolerance,
+      true,
+    );
+
+    return simplifiedTrackPoints;
+  }
+
   return plugin;
-}
-
-export function simplifyTrack(trackPoints, simplificationTolerance) {
-  // EPSG:4326 = WGS84 (lat/lon degrees)
-  // EPSG:3857 = Web Mercator (x/y in meters)
-  const projWGS84 = "EPSG:4326";
-  const projWebMerc = "EPSG:3857";
-
-  // project lat/lon degrees to x/y meter coordinates
-  trackPoints.forEach((trackPoint) => {
-    [trackPoint.x, trackPoint.y] = proj4(projWGS84, projWebMerc, [
-      trackPoint.longitude,
-      trackPoint.latitude,
-    ]);
-  });
-
-  // Simplify (tolerance in meters)
-  const simplifiedTrackPoints = simplify(
-    trackPoints,
-    simplificationTolerance,
-    true,
-  );
-
-  return simplifiedTrackPoints;
 }
