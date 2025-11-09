@@ -1,6 +1,6 @@
 {
   "name": "signalk-daily-gpx-plugin",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Records your track and generates either daily or per-voyage GPX files",
   "keywords": [
     "signalk-node-server-plugin",
@@ -29,9 +29,14 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@protomaps/basemaps": "^5.7.0",
+    "@tmcw/togeojson": "^7.1.2",
+    "@xmldom/xmldom": "^0.8.11",
     "better-sqlite3": "^11.9.1",
     "bootstrap": "^5.3.8",
+    "leaflet": "^1.9.4",
     "proj4": "^2.19.10",
+    "protomaps-leaflet": "^5.1.0",
     "simplify-js": "^1.2.4"
   },
   "repository": {
@@ -44,13 +49,14 @@
   "homepage": "https://github.com/jaffadog/signalk-daily-gpx-plugin",
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@rollup/plugin-json": "^6.1.0",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^16.4.0",
     "mocha": "^11.7.4",
     "prettier": "3.6.2",
-    "@rollup/plugin-json": "^6.1.0",
-    "rollup": "^4.52.4",
+    "rollup": "^4.53.1",
+    "sass-embedded": "^1.93.3",
     "vite": "^7.1.7"
   }
 }
