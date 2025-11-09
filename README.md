@@ -8,9 +8,11 @@ A [SignalK](https://signalk.org/) plugin that records your track and generates e
 
 The SignalK Daily GPX Plugin records your position on a specified time interval to a temporary buffer on the SignalK server. You can configure it to either create a daily GPX file - or per voyage. If configured to generate daily GPX files, at midnight, it collects the recorded data and creates a GPX file containing your track for the day. If configured to generate GPX files per-voyage, once the vessel stops, it collects the recorded data and creates a GPX file containing your track for that voyage. The GPX file is saved on the SignalK server in a folder of your choosing. Over time, you automatically accumulate GPX track files documenting your voyages.
 
-![](/src/web/public/assets/screenshot-map.png)
+| ![](/src/web/public/assets/screenshot-map.png) |
+| ---------------------------------------------- |
 
-![](/src/web/public/assets/screenshot-files.png)
+| ![](/src/web/public/assets/screenshot-files.png) |
+| ------------------------------------------------ |
 
 ## Configuration
 
