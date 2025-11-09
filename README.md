@@ -6,7 +6,11 @@ A [SignalK](https://signalk.org/) plugin that records your track and generates e
 
 ## What Does It Do?
 
-The SignalK Daily GPX Plugin records your position on a specified time interval to a temporary buffer on the SignalK server. If configured to generate daily GPX files, at midnight, it collects the recorded data and creates a GPX file containing your track for the day. If configured to generate GPX files per-voyage, once the vessel stops, it collects the recorded data and creates a GPX file containing your track for that voyage. The GPX file is saved on the SignalK server in a folder of your choosing. Over time, you automatically accumulate GPX track files documenting your voyages.
+The SignalK Daily GPX Plugin records your position on a specified time interval to a temporary buffer on the SignalK server. You can configure it to either create a daily GPX file - or per voyage. If configured to generate daily GPX files, at midnight, it collects the recorded data and creates a GPX file containing your track for the day. If configured to generate GPX files per-voyage, once the vessel stops, it collects the recorded data and creates a GPX file containing your track for that voyage. The GPX file is saved on the SignalK server in a folder of your choosing. Over time, you automatically accumulate GPX track files documenting your voyages.
+
+![](/src/web/public/assets/screenshot-map.png)
+
+![](/src/web/public/assets/screenshot-files.png)
 
 ## Configuration
 
@@ -48,7 +52,7 @@ Record the current depth (from water surface) at each track point using the Garm
 
 ### Webapp
 
-This plugin includes a SignalK webapp (also named **SignalK Daily GPX Plugin**) which facilitates downloading GPX files and managing the local buffer.
+This plugin includes a SignalK webapp (also named **SignalK Daily GPX Plugin**) which facilitates viewing and downloading GPX files - and managing the local buffer.
 
 ### Recommended Plugins
 
