@@ -6,8 +6,6 @@ import { gpx } from "@tmcw/togeojson";
 import { DOMParser } from "@xmldom/xmldom";
 import pmtilesUrl from "../ne_10m_land.pmtiles?url";
 
-console.log("pmtilesUrl", pmtilesUrl);
-
 const parser = new DOMParser();
 const baseUrl = "/plugins/signalk-daily-gpx-plugin";
 const trackColors = [
@@ -240,9 +238,7 @@ function setupMap() {
 function initMap() {
   map.invalidateSize();
   if (tracksGroup.getLayers().length > 0) {
-    map.fitBounds(tracksGroup.getBounds(), {
-      padding: [10, 10],
-    });
+    map.fitBounds(tracksGroup.getBounds());
     tracksGroup.getLayers()[0].openPopup();
   }
 }
