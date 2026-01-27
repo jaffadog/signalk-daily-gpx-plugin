@@ -77,7 +77,7 @@ async function showFiles() {
         li.innerHTML = `<a href="${baseUrl}/files/${files[i]}">${files[i]}</a>`;
         ul.appendChild(li);
 
-        addFileToMap(`${baseUrl}/files/${files[i]}`);
+        await addFileToMap(`${baseUrl}/files/${files[i]}`);
       }
       document.getElementById("fileCount").textContent = files.length;
     }
