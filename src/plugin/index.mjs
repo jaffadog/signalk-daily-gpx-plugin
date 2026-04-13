@@ -7,6 +7,7 @@ const GPX_LAT_LONG_DECIMAL_PLACES = 6;
 const GPX_DEPTH_DECIMAL_PLACES = 2;
 const KNOTS_PER_M_PER_S = 1.94384;
 const MAX_DEPTH_AGE_IN_MILLIS = 10000;
+const MAX_DRIFT = 50;
 
 const DEFAULT_TRACK_INTERVAL = 1;
 const DEFAULT_MINIMUM_SPEED = 0.5;
@@ -17,17 +18,19 @@ const DEFAULT_RECORD_DEPTH = false;
 
 import fs from "fs";
 import path from "path";
-import Database from "better-sqlite3";
 import simplify from "simplify-js";
 import proj4 from "proj4";
 
+var jsonFileName;
+var txtFileName;
+
 export default function (app) {
   var plugin = {};
-  var db;
   var lastRecordedPosition;
   var filename;
   var bufferCount = 0;
   var unsubscribes = [];
+  var recentPositions = [];
 
   var gpsSource;
   var trackInterval;
@@ -55,9 +58,12 @@ export default function (app) {
     recordDepth = options.recordDepth ?? DEFAULT_RECORD_DEPTH;
     gpxFolder = options.gpxFolder ? options.gpxFolder : app.getDataDirPath();
 
-    var dbFile = path.join(app.getDataDirPath(), plugin.id + ".sqlite3");
-    db = new Database(dbFile, { verbose: app.debug });
-    setupSchema();
+    // var dbFile = path.join(app.getDataDirPath(), plugin.id + ".sqlite3");
+    // db = new Database(dbFile, { verbose: app.debug });
+    // setupSchema();
+
+    jsonFileName = path.join(app.getDataDirPath(), plugin.id + ".ndjson");
+    txtFileName = path.join(app.getDataDirPath(), plugin.id + ".txt");
 
     bufferCount = getBufferCount();
 
@@ -85,15 +91,6 @@ export default function (app) {
     app.debug(`Stopping the plugin`);
     unsubscribes.forEach((f) => f());
     unsubscribes = [];
-    if (db) {
-      app.debug("Closing db");
-      try {
-        db.close();
-      } catch (err) {
-        app.error("error closing db", err);
-      }
-    }
-    db = null;
     app.debug("Stopped");
   };
 
@@ -225,7 +222,7 @@ export default function (app) {
   };
 
   function isPluginRunning() {
-    if (!db || !gpxFolder) {
+    if (!txtFileName || !jsonFileName || !gpxFolder) {
       throw new Error("Missing configuration. Is the plugin enabled?");
     }
   }
@@ -280,26 +277,13 @@ export default function (app) {
 
     var sog =
       app.getSelfPath("navigation.speedOverGround").value * KNOTS_PER_M_PER_S;
-    var distance = getDistanceFromLatLonInMeters(
-      lastRecordedPosition.latitude,
-      lastRecordedPosition.longitude,
-      position.latitude,
-      position.longitude,
-    );
+    var distance = distanceMeters(lastRecordedPosition, position);
     var isNewDay =
       new Date(position.ts).getDate() !=
       new Date(lastRecordedPosition.ts).getDate();
-    var minutesSinceLastRecordedPosition =
-      (Date.now() - lastRecordedPosition.ts) / 1000 / 60;
-    var vesselStopped = minutesSinceLastRecordedPosition > 3 * trackInterval;
-    // 50 meters / 1 minutes = 1.62 knots
-    // 50 meters / 2 minutes = 0.81 knots
-    // 50 meters / 3 minutes = 0.54 knots
-    // 50 meters / 5 minutes = 0.32 knots
 
-    app.debug(
-      `bufferCount=${bufferCount} sog=${(sog || 0).toFixed(2)} distance=${(distance || 0).toFixed(2)} isNewDay=${isNewDay} minutesSinceLastRecordedPosition=${(minutesSinceLastRecordedPosition || 0).toFixed(2)} vesselStopped=${vesselStopped} `,
-    );
+    var vesselStopped = isStopped(position);
+    app.debug({ bufferCount, source, sog, distance, isNewDay, vesselStopped });
 
     if (sog >= minimumSpeed && distance >= minimumDistance) {
       addPositionToBuffer(position);
@@ -313,7 +297,8 @@ export default function (app) {
         writeDailyGpxFile(
           getYyyymmdd(new Date(Date.now() - 24 * 60 * 60 * 1000)),
         ); // use yesterdays date
-        clearBuffer(true); // keep last row - so that the series of gpx files are gapless
+        clearBuffer();
+        addPositionToBuffer(lastRecordedPosition); // keep last row - so that the series of gpx files are gapless
       } catch (err) {
         app.error(`Error writing GPX file: ${err}`);
       }
@@ -371,31 +356,14 @@ export default function (app) {
     );
   }
 
-  function setupSchema() {
-    db.prepare(
-      "CREATE TABLE IF NOT EXISTS buffer(ts REAL, latitude REAL, longitude REAL, depth REAL)",
-    ).run();
-
-    // update older versions of the buffer table
-    var hasDepth = db
-      .prepare(
-        "select count(*) as count from pragma_table_info(?) where name=?",
-      )
-      .get("buffer", "depth").count;
-    app.debug("hasDepth=", hasDepth);
-
-    if (!hasDepth) {
-      try {
-        app.debug("adding depth column");
-        db.prepare("ALTER TABLE buffer ADD COLUMN depth REAL").run();
-      } catch (error) {
-        app.error(error);
-      }
-    }
-  }
-
   function getBufferCount() {
-    return db.prepare("SELECT COUNT(*) AS count FROM buffer").get().count;
+    try {
+      const raw = fs.readFileSync(txtFileName, "utf8").trim();
+      return raw ? Number(raw) : 0;
+    } catch (err) {
+      if (err.code === "ENOENT") return 0;
+      throw err;
+    }
   }
 
   function addPositionToBuffer(position) {
@@ -405,30 +373,23 @@ export default function (app) {
       position.latitude,
       position.longitude,
     );
-    db.prepare("INSERT INTO buffer VALUES(?, ?, ?, ?)").run(
-      position.ts,
-      position.latitude,
-      position.longitude,
-      position.depth,
-    );
+    const line = JSON.stringify(position) + "\n";
+    fs.appendFileSync(jsonFileName, line);
     bufferCount++;
+    fs.writeFileSync(txtFileName, String(bufferCount));
     updatePluginStatus();
   }
 
-  function clearBuffer(keepLast) {
+  function clearBuffer() {
     app.debug("clearing buffer");
-    db.prepare(
-      "DELETE FROM buffer" +
-        (keepLast
-          ? " where ts not in (select ts from buffer order by ts desc limit 1)"
-          : ""),
-    ).run();
-    bufferCount = getBufferCount();
+    fs.truncateSync(jsonFileName, 0);
+    fs.writeFileSync(txtFileName, "0");
+    bufferCount = 0;
     updatePluginStatus();
   }
 
   function writeDailyGpxFile(name) {
-    var trackPoints = db.prepare("SELECT * FROM buffer order by ts").all();
+    var trackPoints = readNDJSONSync();
 
     if (!trackPoints || trackPoints.length == 0) {
       throw new Error("The local buffer is empty");
@@ -491,23 +452,40 @@ http://www.garmin.com/xmlschemas/TrackPointExtension/v1 https://www8.garmin.com/
     return `Saved ${filename}`;
   }
 
-  function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
-    var R = 6371000; // Radius of the earth in m
-    var dLat = deg2rad(lat2 - lat1); // deg2rad below
-    var dLon = deg2rad(lon2 - lon1);
-    var a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) *
-        Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    var d = R * c; // Distance in m
-    return d;
+  function readNDJSONSync() {
+    return fs
+      .readFileSync(jsonFileName, "utf8")
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
   }
 
-  function deg2rad(deg) {
-    return deg * (Math.PI / 180);
+  function distanceMeters(a, b) {
+    const R = 6371000;
+    const toRad = (d) => (d * Math.PI) / 180;
+
+    const dLat = toRad(b.latitude - a.latitude);
+    const dLon = toRad(b.longitude - a.longitude);
+
+    const lat1 = toRad(a.latitude);
+    const lat2 = toRad(b.latitude);
+
+    const x = dLon * Math.cos((lat1 + lat2) / 2);
+    const y = dLat;
+
+    return Math.sqrt(x * x + y * y) * R;
+  }
+
+  function isStopped(position) {
+    recentPositions.push(position);
+    recentPositions = recentPositions.slice(-5);
+    if (recentPositions.length < 5) return false;
+    const maxDrift = Math.max(
+      ...recentPositions.map((p) => distanceMeters(recentPositions[0], p)),
+    );
+    app.debug(`maxDrift = ${maxDrift}`);
+    // 50 meters / 5 minutes = 0.32 knots
+    return maxDrift < MAX_DRIFT;
   }
 
   function simplifyTrack(trackPoints, simplificationTolerance) {

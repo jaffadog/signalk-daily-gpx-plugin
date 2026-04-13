@@ -100,7 +100,10 @@ async function addFileToMap(file) {
     const geoJson = gpx(gpxFile);
 
     let track = L.geoJSON(geoJson, {
-      color: trackColors[trackNum % trackColors.length],
+      style: {
+        color: trackColors[trackNum % trackColors.length],
+        weight: 2,
+      },
     }).addTo(map);
 
     track.bindPopup(
