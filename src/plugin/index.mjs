@@ -7,13 +7,13 @@ const GPX_LAT_LONG_DECIMAL_PLACES = 6;
 const GPX_DEPTH_DECIMAL_PLACES = 2;
 const KNOTS_PER_M_PER_S = 1.94384;
 const MAX_DEPTH_AGE_IN_MILLIS = 10000;
-const MAX_DRIFT = 50;
+const MAX_DRIFT = 50; // meters
 
-const DEFAULT_TRACK_INTERVAL = 1;
-const DEFAULT_MINIMUM_SPEED = 0.5;
-const DEFAULT_MINIMUM_DISTANCE = 50;
+const DEFAULT_TRACK_INTERVAL = 1; // minutes
+const DEFAULT_MINIMUM_SPEED = 0.5; // knots
+const DEFAULT_MINIMUM_DISTANCE = 50; // meters
 const DEFAULT_RECORD_VOYAGE = false;
-const DEFAULT_SIMPLIFICATION_TOLERANCE = 10;
+const DEFAULT_SIMPLIFICATION_TOLERANCE = 10; // meters
 const DEFAULT_RECORD_DEPTH = false;
 
 import fs from "fs";
@@ -49,18 +49,14 @@ export default function (app) {
     app.debug("Plugin started with options=", options);
 
     gpsSource = options.gpsSource;
-    trackInterval = options.trackInterval || DEFAULT_TRACK_INTERVAL;
-    minimumSpeed = options.minimumSpeed ?? DEFAULT_MINIMUM_SPEED; // ?? acccepts 0 as a valid value and wont overide it
+    trackInterval = options.trackInterval ?? DEFAULT_TRACK_INTERVAL;
+    minimumSpeed = options.minimumSpeed ?? DEFAULT_MINIMUM_SPEED;
     minimumDistance = options.minimumDistance ?? DEFAULT_MINIMUM_DISTANCE;
-    recordVoyage = options.recordVoyage || DEFAULT_RECORD_VOYAGE;
+    recordVoyage = options.recordVoyage ?? DEFAULT_RECORD_VOYAGE;
     simplificationTolerance =
       options.simplificationTolerance ?? DEFAULT_SIMPLIFICATION_TOLERANCE;
     recordDepth = options.recordDepth ?? DEFAULT_RECORD_DEPTH;
     gpxFolder = options.gpxFolder ? options.gpxFolder : app.getDataDirPath();
-
-    // var dbFile = path.join(app.getDataDirPath(), plugin.id + ".sqlite3");
-    // db = new Database(dbFile, { verbose: app.debug });
-    // setupSchema();
 
     jsonFileName = path.join(app.getDataDirPath(), plugin.id + ".ndjson");
     txtFileName = path.join(app.getDataDirPath(), plugin.id + ".txt");
@@ -170,7 +166,7 @@ export default function (app) {
     router.get("/write-gpx-file-now", (_req, res) => {
       try {
         isPluginRunning();
-        var message = writeDailyGpxFile(getYyyymmddhhmm(new Date()));
+        var message = writeGpxFile(getYyyymmddhhmm(new Date()));
         res.json({ message: message });
       } catch (error) {
         app.error(error);
@@ -294,11 +290,9 @@ export default function (app) {
     if (!recordVoyage && bufferCount > 1 && isNewDay) {
       app.debug("starting a new day - writing gpx file");
       try {
-        writeDailyGpxFile(
-          getYyyymmdd(new Date(Date.now() - 24 * 60 * 60 * 1000)),
-        ); // use yesterdays date
+        writeGpxFile(getYyyymmdd(new Date(Date.now() - 24 * 60 * 60 * 1000))); // use yesterdays date
         clearBuffer();
-        addPositionToBuffer(lastRecordedPosition); // keep last row - so that the series of gpx files are gapless
+        addPositionToBuffer(lastRecordedPosition); // keep last row - so that daily gpx files are gapless
       } catch (err) {
         app.error(`Error writing GPX file: ${err}`);
       }
@@ -311,7 +305,7 @@ export default function (app) {
       addPositionToBuffer(position);
       lastRecordedPosition = position;
       try {
-        writeDailyGpxFile(getYyyymmddhhmm(new Date(lastRecordedPosition.ts)));
+        writeGpxFile(getYyyymmddhhmm(new Date(lastRecordedPosition.ts)));
         clearBuffer();
       } catch (err) {
         app.error(`Error writing GPX file: ${err}`);
@@ -388,7 +382,7 @@ export default function (app) {
     updatePluginStatus();
   }
 
-  function writeDailyGpxFile(name) {
+  function writeGpxFile(name) {
     var trackPoints = readNDJSONSync();
 
     if (!trackPoints || trackPoints.length == 0) {
@@ -409,7 +403,8 @@ export default function (app) {
     var lastTrackPointDate = new Date(trackPoints[trackPoints.length - 1].ts);
     app.debug("lastTrackPointDate", lastTrackPointDate);
 
-    var gpx = `<?xml version="1.0" encoding="UTF-8"?>
+    var gpx = `\
+<?xml version="1.0" encoding="UTF-8"?>
 <gpx xmlns="http://www.topografix.com/GPX/1/1" 
 version="1.1" creator="${plugin.name}"
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
