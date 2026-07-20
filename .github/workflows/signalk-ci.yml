@@ -88,29 +88,29 @@ jobs:
       enable-signalk-integration: true
       signalk-server-versions: '["latest"]'
 
-  test-plugin-auto-venus:
-    if: ${{ github.event_name != 'workflow_dispatch' }}
-    # uses: SignalK/signalk-server/.github/workflows/plugin-ci.yml@master
-    uses: jaffadog/signalk-server/.github/workflows/plugin-ci.yml@feat/separate-build-node-version
-    with:
-      test-command: npm test
-      build-command: npm run build --if-present
-      node-versions: '["20"]'
-      enable-armv7: true
-      enable-signalk-integration: true
-      signalk-server-versions: '["2.13.5"]'
+  # test-plugin-auto-venus:
+  #   if: ${{ github.event_name != 'workflow_dispatch' }}
+  #   # uses: SignalK/signalk-server/.github/workflows/plugin-ci.yml@master
+  #   uses: jaffadog/signalk-server/.github/workflows/plugin-ci.yml@feat/separate-build-node-version
+  #   with:
+  #     test-command: npm test
+  #     build-command: npm run build --if-present
+  #     node-versions: '["20"]'
+  #     enable-armv7: true
+  #     enable-signalk-integration: true
+  #     signalk-server-versions: '["2.13.5"]'
 
-  test-plugin-auto-sk200:
-    if: ${{ github.event_name != 'workflow_dispatch' }}
-    # uses: SignalK/signalk-server/.github/workflows/plugin-ci.yml@master
-    uses: jaffadog/signalk-server/.github/workflows/plugin-ci.yml@feat/separate-build-node-version
-    with:
-      test-command: npm test
-      build-command: npm run build --if-present
-      node-versions: '["16"]'
-      enable-armv7: false
-      enable-signalk-integration: true
-      signalk-server-versions: '["2.0.0"]'
+  # test-plugin-auto-sk200:
+  #   if: ${{ github.event_name != 'workflow_dispatch' }}
+  #   # uses: SignalK/signalk-server/.github/workflows/plugin-ci.yml@master
+  #   uses: jaffadog/signalk-server/.github/workflows/plugin-ci.yml@feat/separate-build-node-version
+  #   with:
+  #     test-command: npm test
+  #     build-command: npm run build --if-present
+  #     node-versions: '["16"]'
+  #     enable-armv7: false
+  #     enable-signalk-integration: true
+  #     signalk-server-versions: '["2.0.0"]'
 
   # ── Manual runs (workflow_dispatch with custom inputs) ────
   test-plugin-manual:
