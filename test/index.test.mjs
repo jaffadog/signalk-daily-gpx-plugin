@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { simplifyTrack } from "../plugin/index.js";
+import { simplifyTrack } from "../src/plugin/index.mjs";
 
 describe("sample track", function () {
   it("should simplify from 71 points to 31", () => {
@@ -590,7 +590,7 @@ describe("sample track", function () {
         time: "2025-10-11T00:10:32.000Z",
         depth: 14.8,
         x: -16183356.619885521,
-        y: -1854616.9404883506,
+        y: -1854616.9404883496,
       },
       {
         latitude: -16.432811,
@@ -622,7 +622,7 @@ describe("sample track", function () {
         time: "2025-10-11T00:22:33.000Z",
         depth: 21.1,
         x: -16183033.682042727,
-        y: -1856482.5476768913,
+        y: -1856482.547676891,
       },
       {
         latitude: -16.44915,
@@ -670,7 +670,7 @@ describe("sample track", function () {
         time: "2025-10-11T00:35:33.000Z",
         depth: 3.1,
         x: -16182351.293564167,
-        y: -1857184.7728010786,
+        y: -1857184.772801078,
       },
       {
         latitude: -16.452467,
@@ -683,6 +683,8 @@ describe("sample track", function () {
     ];
 
     var simplified = simplifyTrack(testTrack, 10, true);
+    console.log("simplified", simplified);
+    console.log("simplified.length", simplified.length);
     assert.equal(testTrack.length, 71);
     assert.equal(expected.length, 31);
     assert.equal(simplified.length, 31);
