@@ -384,6 +384,7 @@ export default function (app) {
 
   function writeGpxFile(name) {
     var trackPoints = readNDJSONSync();
+    trackPoints.sort((a, b) => a.ts - b.ts);
 
     if (!trackPoints || trackPoints.length == 0) {
       throw new Error("The local buffer is empty");
