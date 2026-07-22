@@ -26,7 +26,9 @@
     "build": "npm run build:web && npm run build:plugin",
     "dev": "vite",
     "preview": "vite preview",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "changelog": "node scripts/generate-changelog.mjs",
+    "version": "npm run changelog"
   },
   "dependencies": {
     "@protomaps/basemaps": "^5.7.0",
